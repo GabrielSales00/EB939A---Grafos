@@ -3,7 +3,7 @@ import sys
 import folium
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
-from geopy.distance import distance
+from geopy import distance
 
 CITY_CODES = {
     "Campinas": "3509502",
@@ -41,12 +41,24 @@ def fit_kmeans(data, k):
     model.fit(data)
     return model.cluster_centers_, model.labels_
 
+def get_avg_distance(dados, centroids, labels, mapa=None):
+    distancia_media = 0.0
 
-def get_avg_distance(points, centroids, labels):
-    total = 0.0
-    for p, idx in zip(points, labels):
-        total += distance(p, centroids[idx]).meters
-    return total / len(points)
+    for i in range(len(dados)):
+        if mapa is not None:
+            line = folium.PolyLine(
+                locations=[dados[i], centroids[labels[i]]],
+                color="blue",
+                weight=1
+            )
+            line.add_to(mapa)
+
+        distancia_media += (
+            distance.distance(dados[i], centroids[labels[i]]).m
+            / len(dados)
+        )
+
+    return distancia_media
 
 
 def create_map(points, centroids, labels, center):
@@ -81,13 +93,22 @@ def plot_curve(x, y, xlabel, ylabel, title, filename):
     plt.savefig(filename)
     plt.show()
 
-def find_min_k(data, threshold, k_start=1):
-    k = k_start
+def find_min_k(dados, threshold):
+    k = 1
+
     while True:
-        centroids, labels = fit_kmeans(data, k)
-        avg = get_avg_distance(data, centroids, labels)
+        kmeans = KMeans(n_clusters=k, max_iter=1000)
+        kmeans.fit(dados)
+
+        avg = get_avg_distance(
+            dados,
+            kmeans.cluster_centers_,
+            kmeans.labels_
+        )
+
         if avg <= threshold:
             return k, avg
+
         k += 1
 
 
@@ -100,26 +121,28 @@ def k_distance(data, k_values):
 
 def quest_2(file_path):
     k = 250
-    size_arr = [1000, 3000, 5000, 10000, 30000, 50000, 100000]
-    avg_arr = []
+    household_sizes = [1000, 3000, 5000, 10000, 30000, 50000, 100000]
 
-    print("\n Questão 2:")
+    print("\nQuestão 2:")
 
-    for n in size_arr:
-        data = load_points(file_path)
-        centroids, labels = fit_kmeans(data, k)
-        avg = get_avg_distance(data, centroids, labels)
-        avg_arr.append(avg)
-        print(f"  Domicílios={n:6d} → Distância média={avg:.2f} m")
+    for n in household_sizes:
+        dados = load_points(file_path)
 
-    plot_curve(
-        size_arr,
-        avg_arr,
-        "Número de domicílios",
-        "Distância média",
-        "Número de domicílios vs Distância média",
-        "q2.png"
-    )
+        kmeans = KMeans(n_clusters=k, max_iter=1000)
+        kmeans.fit(dados)
+
+        avg = get_avg_distance(
+            dados,
+            kmeans.cluster_centers_,
+            kmeans.labels_,
+            mapa=None
+        )
+
+        print(
+            f"  Domicílios={n:6d} → Distância média={avg:.2f} m"
+        )
+
+
 
 def quest_3(file_path):
     data = load_points(file_path)
@@ -128,7 +151,7 @@ def quest_3(file_path):
 
     print("\n Questão 3:")
 
-    for k in k_values:
+    for k in k_arr:
         centroids, labels = fit_kmeans(data, k)
         avg = get_avg_distance(data, centroids, labels)
         avg_arr.append(avg)
@@ -152,20 +175,20 @@ if __name__ == "__main__":
     data_path = os.path.join(base_path, f"{CITY_CODES['Limeira']}.csv")
     quest_2(data_path)
 
-    lim_10k = os.path.join(base_path, "10k.csv")
-    quest_3(lim_10k)
+    lim_10k_path = os.path.join(base_path, "lim_10k.csv")
+    quest_3(lim_10k_path)
+
+
+    print(f"\n EXERCÍCIO 4:")
 
     for city, code in CITY_CODES.items():
         print(f"{city}")
-
-        file_path = os.path.join(base_path, f"{code}.csv")
-        data = load_points(file_path)
+        data = load_points(lim_10k_path)
 
         # Exercício 4:
-        print(f"\n EXERCÍCIO 4:")
         for threshold in (350, 150):
             k, avg = find_min_k(data, threshold)
-            print(f"  Distância ≤ {threshold} m → k ≈ {k} (avg={avg} m)")
+            print(f"  Distância ≤ {threshold}, k próximo a {k}, (avg={avg})")
 
             centroids, labels = fit_kmeans(data, k)
 
