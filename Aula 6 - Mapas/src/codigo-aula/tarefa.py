@@ -149,8 +149,8 @@ def quest_3(file_path):
 if __name__ == "__main__":
     base_path = sys.argv[1]
 
-    lim_data_path = os.path.join(base_path, f"{CITY_CODES['Limeira']}.csv")
-    quest_2(camp_data_path)
+    data_path = os.path.join(base_path, f"{CITY_CODES['Limeira']}.csv")
+    quest_2(data_path)
 
     lim_10k = os.path.join(base_path, "10k.csv")
     quest_3(lim_10k)
